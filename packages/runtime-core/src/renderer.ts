@@ -347,6 +347,9 @@ function baseCreateRenderer(
     initFeatureFlags()
   }
 
+  /** 根据宿主机环境创建this
+   * eg：浏览器：window、node：globalThis etc.
+   */
   const target = getGlobalThis()
   target.__VUE__ = true
   if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
@@ -370,6 +373,9 @@ function baseCreateRenderer(
 
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
+  // 对比函数，根据type调用不同的处理函数
+  // 根据vnode挂载DOM；
+  // 比较新旧vnode更新DOM。
   const patch: PatchFn = (
     n1,
     n2,
@@ -381,6 +387,7 @@ function baseCreateRenderer(
     slotScopeIds = null,
     optimized = __DEV__ && isHmrUpdating ? false : !!n2.dynamicChildren,
   ) => {
+    // 如果相同，直接返回
     if (n1 === n2) {
       return
     }
@@ -400,12 +407,15 @@ function baseCreateRenderer(
     const { type, ref, shapeFlag } = n2
     switch (type) {
       case Text:
+        // 处理文本节点
         processText(n1, n2, container, anchor)
         break
       case Comment:
+        // 处理注释节点
         processCommentNode(n1, n2, container, anchor)
         break
       case Static:
+        // 静态节点
         if (n1 == null) {
           mountStaticNode(n2, container, anchor, namespace)
         } else if (__DEV__) {
@@ -413,6 +423,7 @@ function baseCreateRenderer(
         }
         break
       case Fragment:
+        // Fragment节点
         processFragment(
           n1,
           n2,
@@ -427,6 +438,7 @@ function baseCreateRenderer(
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
+          // 处理普通元素
           processElement(
             n1,
             n2,
@@ -439,6 +451,7 @@ function baseCreateRenderer(
             optimized,
           )
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          // 处理组件
           processComponent(
             n1,
             n2,
@@ -451,6 +464,7 @@ function baseCreateRenderer(
             optimized,
           )
         } else if (shapeFlag & ShapeFlags.TELEPORT) {
+          // 处理teleport
           ;(type as typeof TeleportImpl).process(
             n1 as TeleportVNode,
             n2 as TeleportVNode,
@@ -464,6 +478,7 @@ function baseCreateRenderer(
             internals,
           )
         } else if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
+          // 处理suspense
           ;(type as typeof SuspenseImpl).process(
             n1,
             n2,
@@ -477,6 +492,7 @@ function baseCreateRenderer(
             internals,
           )
         } else if (__DEV__) {
+          // 开发环境，type不满足所有情况，是无效的type
           warn('Invalid VNode type:', type, `(${typeof type})`)
         }
     }
@@ -644,6 +660,7 @@ function baseCreateRenderer(
     let vnodeHook: VNodeHook | undefined | null
     const { props, shapeFlag, transition, dirs } = vnode
 
+    // 创建dom元素
     el = vnode.el = hostCreateElement(
       vnode.type as string,
       namespace,
@@ -651,6 +668,7 @@ function baseCreateRenderer(
       props,
     )
 
+    // 挂载子节点
     // mount children first, since some props may rely on child content
     // being already rendered, e.g. `<select value>`
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
@@ -711,6 +729,7 @@ function baseCreateRenderer(
     if (needCallTransitionHooks) {
       transition!.beforeEnter(el)
     }
+    // 插入元素
     hostInsert(el, container, anchor)
     if (
       (vnodeHook = props && props.onVnodeMounted) ||
@@ -1147,6 +1166,7 @@ function baseCreateRenderer(
           optimized,
         )
       } else {
+        // 挂载组件
         mountComponent(
           n2,
           container,
@@ -1158,6 +1178,7 @@ function baseCreateRenderer(
         )
       }
     } else {
+      // 更新组件
       updateComponent(n1, n2, optimized)
     }
   }
@@ -1175,6 +1196,7 @@ function baseCreateRenderer(
     // mounting
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
+    // 创建组件实例
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -1202,6 +1224,8 @@ function baseCreateRenderer(
       if (__DEV__) {
         startMeasure(instance, `init`)
       }
+      // 设置组件实例上下文，挂载外部传入的方法和数据
+      // 主要是对props、slots等属性进行初始化。
       setupComponent(instance, false, optimized)
       if (__DEV__) {
         endMeasure(instance, `init`)
@@ -1224,6 +1248,7 @@ function baseCreateRenderer(
         processCommentNode(null, placeholder, container!, anchor)
       }
     } else {
+      // 设置并运行带副作用的渲染函数
       setupRenderEffect(
         instance,
         initialVNode,
@@ -1272,6 +1297,8 @@ function baseCreateRenderer(
     }
   }
 
+  // 此时instance上方法和数据已经挂载完成
+  // 执行render渲染，包括在这执行组件里的生命钩子
   const setupRenderEffect: SetupRenderEffectFn = (
     instance,
     initialVNode,
@@ -1354,6 +1381,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `render`)
           }
+          // 首次挂载逻辑
           const subTree = (instance.subTree = renderComponentRoot(instance))
           if (__DEV__) {
             endMeasure(instance, `render`)
@@ -1554,10 +1582,12 @@ function baseCreateRenderer(
 
     // create reactive effect for rendering
     instance.scope.on()
+    // 创建响应式effect
     const effect = (instance.effect = new ReactiveEffect(componentUpdateFn))
     instance.scope.off()
 
     const update = (instance.update = effect.run.bind(effect))
+    // 创建调度任务
     const job: SchedulerJob = (instance.job = effect.runIfDirty.bind(effect))
     job.i = instance
     job.id = instance.uid
@@ -1575,7 +1605,7 @@ function baseCreateRenderer(
         ? e => invokeArrayFns(instance.rtg!, e)
         : void 0
     }
-
+    // 立即执行更新函数
     update()
   }
 
@@ -1649,8 +1679,10 @@ function baseCreateRenderer(
     }
 
     // children has 3 possibilities: text, array or no children.
+    // children字段有三种可能的类型：文字，数组或者不是数组
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       // text children fast path
+      // c2为text，c1为数组，先unmount c1 chilren，然后insert c1添加进元素
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         unmountChildren(c1 as VNode[], parentComponent, parentSuspense)
       }
@@ -1658,8 +1690,10 @@ function baseCreateRenderer(
         hostSetElementText(container, c2 as string)
       }
     } else {
+      // c1（old）为数组
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         // prev children was array
+        // c2也为数组， full diff
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
           // two arrays, cannot assume anything, do full diff
           patchKeyedChildren(
@@ -1675,6 +1709,7 @@ function baseCreateRenderer(
           )
         } else {
           // no new children, just unmount old
+          // c2不是text也不是array， no array 进行unmount
           unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true)
         }
       } else {
@@ -1700,6 +1735,8 @@ function baseCreateRenderer(
     }
   }
 
+  // child没有携带key，直接比较length长度，选择最小长度进行patch
+  // 如果old >new unmountchildren； old < new mountchildren
   const patchUnkeyedChildren = (
     c1: VNode[],
     c2: VNodeArrayChildren,
@@ -1836,6 +1873,7 @@ function baseCreateRenderer(
     // (a b)
     // c (a b)
     // i = 0, e1 = -1, e2 = 0
+    // e1检索完毕，e1 < i <= e2，此时挂载e2里面新增的节点
     if (i > e1) {
       if (i <= e2) {
         const nextPos = e2 + 1
@@ -1866,6 +1904,7 @@ function baseCreateRenderer(
     // a (b c)
     // (b c)
     // i = 0, e1 = 0, e2 = -1
+    // e2检索完毕，e2 < i <= e1，此时卸载e1里面多余的节点
     else if (i > e2) {
       while (i <= e1) {
         unmount(c1[i], parentComponent, parentSuspense, true)
@@ -2351,12 +2390,14 @@ function baseCreateRenderer(
   }
 
   let isFlushing = false
+  // 核心渲染函数，提供api并暴露出去
   const render: RootRenderFunction = (vnode, container, namespace) => {
     if (vnode == null) {
       if (container._vnode) {
         unmount(container._vnode, null, null, true)
       }
     } else {
+      // 创建或更新组件
       patch(
         container._vnode || null,
         vnode,
@@ -2367,6 +2408,7 @@ function baseCreateRenderer(
         namespace,
       )
     }
+    // 缓存vnode节点，表示已经渲染
     container._vnode = vnode
     if (!isFlushing) {
       isFlushing = true
@@ -2488,22 +2530,30 @@ export function traverseStaticChildren(
 }
 
 // https://en.wikipedia.org/wiki/Longest_increasing_subsequence
+// 找到那些不需要移动的元素，在遍历的过程中，我们可以直接跳过不进行其他操作。(最长递增子序列)
+// 返回的数组最长递增子序列数组索引(贪心+二分)
 function getSequence(arr: number[]): number[] {
+  // 浅拷贝一个新数组p，记录前驱节点
   const p = arr.slice()
   const result = [0]
   let i, j, u, v, c
   const len = arr.length
   for (i = 0; i < len; i++) {
     const arrI = arr[i]
+    // 在 Vue 3 Diff 中，0 表示该新节点不在旧节点的中，是需要进行新增的节点
     if (arrI !== 0) {
+      // j为最后一项的索引
       j = result[result.length - 1]
+      // 数组最后一项与当前项进行比较
       if (arr[j] < arrI) {
+        // 更新前驱节点，保存前一项的索引
         p[i] = j
         result.push(i)
         continue
       }
       u = 0
       v = result.length - 1
+      // 二分查找，某一项刚好大于当前项
       while (u < v) {
         c = (u + v) >> 1
         if (arr[result[c]] < arrI) {
@@ -2512,6 +2562,7 @@ function getSequence(arr: number[]): number[] {
           v = c
         }
       }
+      // 如果找到存在比arrI小的下一个索引，用当前元素替换掉二分找到的那一项。
       if (arrI < arr[result[u]]) {
         if (u > 0) {
           p[i] = result[u - 1]
@@ -2522,12 +2573,15 @@ function getSequence(arr: number[]): number[] {
   }
   u = result.length
   v = result[u - 1]
+  // 逆序遍历数组 p，纠正 result 数组的索引
   while (u-- > 0) {
     result[u] = v
     v = p[v]
   }
   return result
 }
+
+// getSequence([3, 2, 8, 9, 5, 6, 7, 11, 15, 4])
 
 function locateNonHydratedAsyncRoot(
   instance: ComponentInternalInstance,

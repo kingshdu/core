@@ -67,10 +67,17 @@ const rendererOptions = /*@__PURE__*/ extend({ patchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
 // in case the user only imports reactivity utilities from Vue.
+/*
+  render = {
+    render,
+    hydrate,
+    createApp: createAppAPI(render, hydrate),
+  }
+*/
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer
 
 let enabledHydration = false
-
+/** 创建或者返回已有的render对象  */
 function ensureRenderer() {
   return (
     renderer ||
@@ -94,8 +101,13 @@ export const render = ((...args) => {
 export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
-
+// 核心函数，根据解析完或者直接传入的参数创建app对象
 export const createApp = ((...args) => {
+  // ensureRenderer确保返回一个暴露包含render, hydrate, createApp的对象
+  /**
+   * createApp返回app对象，包括各种本身的属性：props，context etc.
+   * 各种使用的方法：use注册、mount挂载、component注册组件 etc.
+   */
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
@@ -104,11 +116,14 @@ export const createApp = ((...args) => {
   }
 
   const { mount } = app
+  // 扩展mount，外部调用app.mount时进入这里处理
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
+    // 标准化容器：将字符串选择器转换为DOM对象
     const container = normalizeContainer(containerOrSelector)
     if (!container) return
 
     const component = app._component
+    // 如果组件对象没有定义render函数和template模板，则取容器的innerHTML作为模板内容
     if (!isFunction(component) && !component.render && !component.template) {
       // __UNSAFE__
       // Reason: potential execution of JS expressions in in-DOM template.
@@ -134,6 +149,7 @@ export const createApp = ((...args) => {
     if (container.nodeType === 1) {
       container.textContent = ''
     }
+    // 走runtime-core中实现的标准流程进行挂载
     const proxy = mount(container, false, resolveRootNamespace(container))
     if (container instanceof Element) {
       container.removeAttribute('v-cloak')
@@ -224,7 +240,11 @@ function injectCompilerOptionsCheck(app: App) {
     })
   }
 }
-
+/**
+ * 统一规范化处理不同类型的container
+ * @param {Element | ShadowRoot | string} container
+ * @returns
+ */
 function normalizeContainer(
   container: Element | ShadowRoot | string,
 ): Element | ShadowRoot | null {

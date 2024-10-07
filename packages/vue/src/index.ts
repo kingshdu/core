@@ -31,6 +31,7 @@ function compileToFunction(
   template: string | HTMLElement,
   options?: CompilerOptions,
 ): RenderFunction {
+  // 解析的root字符串模板
   if (!isString(template)) {
     if (template.nodeType) {
       template = template.innerHTML

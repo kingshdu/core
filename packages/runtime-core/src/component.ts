@@ -760,6 +760,7 @@ if (__SSR__) {
   }
 }
 
+/** 设置当前实例 */
 export const setCurrentInstance = (instance: ComponentInternalInstance) => {
   const prev = currentInstance
   internalSetCurrentInstance(instance)
@@ -775,8 +776,12 @@ export const unsetCurrentInstance = (): void => {
   internalSetCurrentInstance(null)
 }
 
+/** 默认存在slot和component内置name */
 const isBuiltInTag = /*@__PURE__*/ makeMap('slot,component')
 
+/**
+ * 验证组件名是否有效
+ */
 export function validateComponentName(
   name: string,
   { isNativeTag }: AppConfig,
@@ -788,6 +793,9 @@ export function validateComponentName(
   }
 }
 
+/**
+ * 是否是stateFul组件，vue2.x形式
+ */
 export function isStatefulComponent(
   instance: ComponentInternalInstance,
 ): number {
@@ -804,10 +812,14 @@ export function setupComponent(
   isSSR && setInSSRSetupState(isSSR)
 
   const { props, children } = instance.vnode
+  // 判断组件是否有状态
   const isStateful = isStatefulComponent(instance)
+  // 初始化props
   initProps(instance, props, isStateful, isSSR)
+  // 初始化slots
   initSlots(instance, children, optimized)
 
+  // 如果有状态，则调用 setupStatefulComponent 进行组件实例设置，内部调用了 setup 函数。
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
@@ -816,6 +828,7 @@ export function setupComponent(
   return setupResult
 }
 
+/**初始化非SSR组件对象 */
 function setupStatefulComponent(
   instance: ComponentInternalInstance,
   isSSR: boolean,
@@ -855,7 +868,9 @@ function setupStatefulComponent(
   }
   // 2. call setup()
   const { setup } = Component
+  // 使用setup函数的话，进行处理
   if (setup) {
+    // 如果setup函数使用了第二个参数，那么Vue在执行setup函数之前就要把这个上下文对象准备好
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
@@ -913,6 +928,9 @@ function setupStatefulComponent(
   }
 }
 
+// 处理setup返回的结果
+// 1.返回一个渲染函数，绑定到instance.render上
+// 2.返回一个对象,绑定到instance.setupResult上
 export function handleSetupResult(
   instance: ComponentInternalInstance,
   setupResult: unknown,
@@ -1051,6 +1069,7 @@ export function finishComponentSetup(
     const reset = setCurrentInstance(instance)
     pauseTracking()
     try {
+      // 执行2.x版本的options参数
       applyOptions(instance)
     } finally {
       resetTracking()

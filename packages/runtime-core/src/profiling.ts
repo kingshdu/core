@@ -8,6 +8,7 @@ import { devtoolsPerfEnd, devtoolsPerfStart } from './devtools'
 let supported: boolean
 let perf: Performance
 
+/** 开启性能追踪特性 */
 export function startMeasure(
   instance: ComponentInternalInstance,
   type: string,

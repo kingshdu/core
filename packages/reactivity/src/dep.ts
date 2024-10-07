@@ -101,10 +101,11 @@ export class Dep {
   }
 
   track(debugInfo?: DebuggerEventExtraInfo): Link | undefined {
+    // 如果是活动的订阅，不追踪的依赖，直接返回
     if (!activeSub || !shouldTrack || activeSub === this.computed) {
       return
     }
-
+    /**当前活动链表 */
     let link = this.activeLink
     if (link === undefined || link.sub !== activeSub) {
       link = this.activeLink = new Link(activeSub, this)
@@ -199,6 +200,7 @@ export class Dep {
   }
 }
 
+// 添加订阅的活动链表进双向链表
 function addSub(link: Link) {
   link.dep.sc++
   if (link.sub.flags & EffectFlags.TRACKING) {
@@ -302,6 +304,7 @@ export function trigger(
     return
   }
 
+  /** 执行dep的trigger */
   const run = (dep: Dep | undefined) => {
     if (dep) {
       if (__DEV__) {
@@ -346,6 +349,7 @@ export function trigger(
         run(depsMap.get(key))
       }
 
+      // 安排 ARRAY _ ITERATE用于任何数字键的改变(长度如上所述)
       // schedule ARRAY_ITERATE for any numeric key change (length is handled above)
       if (isArrayIndex) {
         run(depsMap.get(ARRAY_ITERATE_KEY))

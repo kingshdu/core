@@ -515,6 +515,7 @@ function createDuplicateChecker() {
 
 export let shouldCacheAccess = true
 
+/** 执行2.x的options instance */
 export function applyOptions(instance: ComponentInternalInstance): void {
   const options = resolveMergedOptions(instance)
   const publicThis = instance.proxy! as any
@@ -586,6 +587,7 @@ export function applyOptions(instance: ComponentInternalInstance): void {
     resolveInjections(injectOptions, ctx, checkDuplicateProperties)
   }
 
+  // 收集instance上的methods方法
   if (methods) {
     for (const key in methods) {
       const methodHandler = (methods as MethodOptions)[key]
@@ -615,6 +617,7 @@ export function applyOptions(instance: ComponentInternalInstance): void {
     }
   }
 
+  // 执行instance上的data函数
   if (dataOptions) {
     if (__DEV__ && !isFunction(dataOptions)) {
       warn(
@@ -657,6 +660,7 @@ export function applyOptions(instance: ComponentInternalInstance): void {
   if (computedOptions) {
     for (const key in computedOptions) {
       const opt = (computedOptions as ComputedOptions)[key]
+      // 判断get传入的为函数还是obj.get方法
       const get = isFunction(opt)
         ? opt.bind(publicThis, publicThis)
         : isFunction(opt.get)

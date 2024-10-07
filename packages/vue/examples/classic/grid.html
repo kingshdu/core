@@ -86,6 +86,14 @@
     components: {
       DemoGrid,
     },
+    beforeCreate(){
+      this.bc = 'bc'
+      console.log('created')
+    },
+    created(){
+      this.c = 'c'
+      console.log('created')
+    },
     data: () => ({
       searchQuery: '',
       gridColumns: ['name', 'power'],

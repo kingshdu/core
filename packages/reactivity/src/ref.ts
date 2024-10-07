@@ -42,6 +42,7 @@ export interface Ref<T = any, S = T> {
  */
 export function isRef<T>(r: Ref<T> | unknown): r is Ref<T>
 export function isRef(r: any): r is Ref {
+  // 通过IS_REF这个symbol属性进行判断
   return r ? r[ReactiveFlags.IS_REF] === true : false
 }
 
@@ -57,7 +58,7 @@ export function ref<T>(
 ): [T] extends [Ref] ? IfAny<T, Ref<T>, T> : Ref<UnwrapRef<T>, UnwrapRef<T> | T>
 export function ref<T = any>(): Ref<T | undefined>
 export function ref(value?: unknown) {
-  return createRef(value, false)
+  return createRef(value, false) // 创建ref对象，默认为深层响应
 }
 
 declare const ShallowRefMarker: unique symbol
@@ -92,7 +93,7 @@ export function shallowRef<T>(
   : ShallowRef<T>
 export function shallowRef<T = any>(): ShallowRef<T | undefined>
 export function shallowRef(value?: unknown) {
-  return createRef(value, true)
+  return createRef(value, true) // 第二个参数控制是否深层监听
 }
 
 function createRef(rawValue: unknown, shallow: boolean) {
@@ -103,25 +104,27 @@ function createRef(rawValue: unknown, shallow: boolean) {
 }
 
 /**
+ * Ref实现类
  * @internal
  */
 class RefImpl<T = any> {
   _value: T
   private _rawValue: T
-
+  //
   dep: Dep = new Dep()
 
   public readonly [ReactiveFlags.IS_REF] = true
   public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false
 
   constructor(value: T, isShallow: boolean) {
-    this._rawValue = isShallow ? value : toRaw(value)
-    this._value = isShallow ? value : toReactive(value)
+    this._rawValue = isShallow ? value : toRaw(value) // 获取原始值
+    this._value = isShallow ? value : toReactive(value) // 转换成响应式对象
     this[ReactiveFlags.IS_SHALLOW] = isShallow
   }
 
   get value() {
     if (__DEV__) {
+      //开发环境依赖追踪
       this.dep.track({
         target: this,
         type: TrackOpTypes.GET,
@@ -208,6 +211,7 @@ export type MaybeRef<T = any> =
 export type MaybeRefOrGetter<T = any> = MaybeRef<T> | ComputedRef<T> | (() => T)
 
 /**
+ * 解构ref语法糖函数
  * Returns the inner value if the argument is a ref, otherwise return the
  * argument itself. This is a sugar function for
  * `val = isRef(val) ? val.value : val`.
@@ -228,6 +232,7 @@ export function unref<T>(ref: MaybeRef<T> | ComputedRef<T>): T {
 }
 
 /**
+ * 标准化函数返回值/原始值/ref值
  * Normalizes values / refs / getters to values.
  * This is similar to {@link unref()}, except that it also normalizes getters.
  * If the argument is a getter, it will be invoked and its return value will
@@ -264,6 +269,7 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
 }
 
 /**
+ * 代理refs为对象情况
  * Returns a proxy for the given object that shallowly unwraps properties that
  * are refs. If the object already is reactive, it's returned as-is. If not, a
  * new reactive proxy is created.
@@ -287,6 +293,7 @@ export type CustomRefFactory<T> = (
   set: (value: T) => void
 }
 
+// 用户自定义的ref类，并对其依赖项跟踪进行显式控制
 class CustomRefImpl<T> {
   public dep: Dep
 
@@ -314,6 +321,7 @@ class CustomRefImpl<T> {
 }
 
 /**
+ * customRef()  将追踪和触发开放出去
  * Creates a customized ref with explicit control over its dependency tracking
  * and updates triggering.
  *
@@ -329,6 +337,7 @@ export type ToRefs<T = any> = {
 }
 
 /**
+ * 对象或者响应式对象转ref函数
  * Converts a reactive object to a plain object where each property of the
  * resulting object is a ref pointing to the corresponding property of the
  * original object. Each individual ref is created using {@link toRef()}.
@@ -346,7 +355,7 @@ export function toRefs<T extends object>(object: T): ToRefs<T> {
   }
   return ret
 }
-
+// 对象转ref类
 class ObjectRefImpl<T extends object, K extends keyof T> {
   public readonly [ReactiveFlags.IS_REF] = true
   public _value: T[K] = undefined!
@@ -370,7 +379,10 @@ class ObjectRefImpl<T extends object, K extends keyof T> {
     return getDepFromReactive(toRaw(this._object), this._key)
   }
 }
-
+/**
+ * toRef中getter函数转Ref类
+ * eg：toRef(() => props.foo)
+ */
 class GetterRefImpl<T> {
   public readonly [ReactiveFlags.IS_REF] = true
   public readonly [ReactiveFlags.IS_READONLY] = true
@@ -459,6 +471,7 @@ export function toRef(
   }
 }
 
+/** 对象属性转ref函数 */
 function propertyToRef(
   source: Record<string, any>,
   key: string,

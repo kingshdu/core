@@ -253,6 +253,7 @@ export function createAppAPI<HostElement>(
   hydrate?: RootHydrateFunction,
 ): CreateAppFunction<HostElement> {
   return function createApp(rootComponent, rootProps = null) {
+    // 确保rootComponent不为函数，通过assign隔离作用域
     if (!isFunction(rootComponent)) {
       rootComponent = extend({}, rootComponent)
     }
@@ -261,9 +262,11 @@ export function createAppAPI<HostElement>(
       __DEV__ && warn(`root props passed to app.mount() must be an object.`)
       rootProps = null
     }
-
+    // 创建app上下文，挂载classic形势必需的属性
     const context = createAppContext()
+    // 插件记录区
     const installedPlugins = new WeakSet()
+    // 插件callback list
     const pluginCleanupFns: Array<() => any> = []
 
     let isMounted = false
@@ -289,7 +292,7 @@ export function createAppAPI<HostElement>(
           )
         }
       },
-
+      // 注册插件
       use(plugin: Plugin, ...options: any[]) {
         if (installedPlugins.has(plugin)) {
           __DEV__ && warn(`Plugin has already been applied to target app.`)
@@ -338,21 +341,24 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      // 全局注册自定义指令处理函数
       directive(name: string, directive?: Directive) {
         if (__DEV__) {
           validateDirectiveName(name)
         }
 
+        // app.directive(name), 返回指定的指令对象
         if (!directive) {
           return context.directives[name] as any
         }
         if (__DEV__ && context.directives[name]) {
           warn(`Directive "${name}" has already been registered in target app.`)
         }
+        // app.directive(name, directive), 注册指定的指令对象，并记录到directives对象
         context.directives[name] = directive
         return app
       },
-
+      // 处理rootDom，创建VNode并挂载
       mount(
         rootContainer: HostElement,
         isHydrate?: boolean,
@@ -391,6 +397,7 @@ export function createAppAPI<HostElement>(
             }
           }
 
+          // 是否SSR渲染
           if (isHydrate && hydrate) {
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
